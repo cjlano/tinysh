@@ -1,0 +1,10 @@
+
+AC_INIT()
+
+AM_INIT_AUTOMAKE(tinysh, 0.1.0)
+
+AM_CONDITIONAL(DEBUG, test "$enable_debug" = yes)
+
+AC_PROG_CC
+
+AC_OUTPUT(Makefile)

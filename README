@@ -1,0 +1,148 @@
+
+TINYSH: MINIMAL SHELL
+=====================
+
+The purpose of the tinysh library is to provide a fully fonctional
+shell support to a system as soon as we are able to read/write
+characters to/from a device. This suits particularly well to embedded
+systems when developers just made the uart work.
+
+As embedded systems often do not have full libc support, the library
+is written without any use of external functions nor include of any
+system header.
+
+The package contains a main.c file that can be used as an example
+to demonstrate tinysh usage.
+
+
+INSTALLATION
+------------
+Run the commands:
+./configure
+make all
+
+You just built the ./tinysh program. Run it and type "help" for
+further instructions.
+
+
+USING TINYSH
+------------
+
+The application must pass every single input character to function
+tinysh_char_in. In addition, the application must provide a 
+tinysh_char_out function to write characters to output device
+
+For example:
+
+    void tinysh_char_out(unsigned char c)
+    {
+       put_char_to_uart(c);
+    }
+    ...
+    while(1)
+    {
+       unsigned char c;
+       c=get_char_from_uart(); /* we assume this fnt is blocking */
+       tinysh_char_in(c);
+    }
+    ... 
+
+The application must provide each command by instantiating a
+tinysh_cmd_t structure:
+
+typedef struct tinysh_cmd_t {
+  struct tinysh_cmd_t *parent; /* 0 if top level command */
+  char *name;                  /* command input name, not 0 */
+  char *help;                  /* help string, can be 0 */
+  char *usage;                 /* usage string, can be 0 */
+  tinysh_fnt_t function;       /* function to launch on cmd, can be 0 */
+  void *arg;                   /* current argument when function called */
+  struct tinysh_cmd_t *next;   /* must be set to 0 at init */
+  struct tinysh_cmd_t *child;  /* must be set to 0 at init */
+} tinysh_cmd_t;
+
+and passing the pointer to this structure to function tinysh_add_command.
+
+For example:
+
+void hello_fnt(int argc, char **argv)
+{
+    printf("hello world\n");
+}
+
+tinysh_cmd_t hello_cmd={0,"hello","display hello","<cr>",
+    hello_fnt,0,0,0};
+
+...
+tinysh_add_command(&hello_cmd);
+...
+
+Read file main.c for more advanced usage.
+
+
+TINYSH SUPPORTS
+---------------
+
+-command registration: application adds commands dynamically 
+
+-sub-commands: allows any number of command level. For instance: 
+    "$ memory read bytes <address> <size>" is supported and the 
+    developer does not have to make a single "memory-read-bytes"
+    command.
+
+-contexts: the system remembers about contexts between inputs, 
+    for instance, from the previous example, typing "memory<cr>"
+    leads to prompt "$ memory >" so the next input can be simply
+    "read bytes <xx> <yy>". Use "/" to return to top level.
+
+-previous commands retrieval: by using CTRL-P and CTRL-N
+
+-partial command word: there is no need to type the whole
+    command word if there is no ambiguity on what has already been 
+    typed.
+
+-auto-completion: using <TAB>
+
+-help and usage display: using "?", display help related to current 
+    input line.
+
+-string to decimal/hexadecimal conversion: this is not really a shell
+    feature but this is often very useful in the environment where
+    tinysh can be used. Strings starting with 0x are converted to 
+    hexadecimal.
+
+-echo control: it is possible for the application to enable/disable
+    character echo.
+
+-dynamic argument: to allow several commands to share the same function 
+    callback, the callback can retrieve an additional argument for the 
+    current  command.
+
+-prompt change: application can change shell prompt.
+
+TINYSH DOES NOT SUPPORT
+-----------------------
+
+-line edition: only backspace is supported
+
+-multiple shells within the same data space: this could be done
+    by adding a new parameter to all functions. This parameter would
+    be a pointer to a structure containing all currently global 
+    variables. As tinysh is not allowed to use dynamic memory
+    allocation (which may not be available in the system), an
+    empty structure (all 0s) must be provided by the application at
+    shell instance init. As we want to keep simple things simple,
+    the tinysh library should support one instance and current 
+    functions must remain unchanged by using macros. This is to
+    be done.
+
+-application driven context: it is not possible to have contexts
+    such as "$ subsystem <subsys-name> > " if <subsys-name> is not
+    determined at compile time. It will added when there will be a 
+    real need for it.
+
+
+BUGS
+----
+
+Please report bugs to "Michel Gutierrez"<mig@nerim.net>
